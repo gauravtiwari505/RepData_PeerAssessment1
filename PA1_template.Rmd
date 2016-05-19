@@ -1,25 +1,125 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "PA1_Template"
+author: "Gaurav Tiwari"
+date: "May 19, 2016"
+output: html_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
 ## Loading and preprocessing the data
+```{r, Reading the data, echo=TRUE}
+activity=read.csv("activity.csv",header=TRUE)
+```
+Preprocessing if any required will be done during the course of the steps
+
 
 
 
 ## What is mean total number of steps taken per day?
+For this step we need to first create a dataframe which contains the total number of steps taken by the individual in a day. We will
+use the aggregate function to do the summarization
+```{r,Total steps per day, echo=TRUE}
+steps_in_a_day =aggregate(activity$steps,list(activity$date),sum)
+#Naming the columns for better workability
+colnames(steps_in_a_day) = c("date","Total_Steps")
 
+#Plotting a histogram of the total number of steps taken each day
+hist(steps_in_a_day$Total_Steps,xlab ="",col="blue")
+```
 
+Mean  and Median of total number of steps taken per day
+```{r, Mean and Median Computation,echo=TRUE}
+mean(steps_in_a_day$Total_Steps,na.rm = TRUE)
+median(steps_in_a_day$Total_Steps,na.rm = TRUE)
+```
 
 ## What is the average daily activity pattern?
+To solve this question, we will have to summarize the data but this time within the own groups of subsequent 5 minute interval.
+```{r, echo = TRUE}
+#Creating mean steps taken for each 5 minute interval throughout the period of 2 months
+mean_steps_per_5_mins <- tapply(activity$steps, activity$interval, mean, na.rm=TRUE)
+```
+Creating a linear time series plot for the mean steps taken per 5 minutes period
+```{r, Creating Linear plot,echo = TRUE}
+plot(mean_steps_per_5_mins, type = "l", xlab = "",ylab= "Mean Steps in the 5 minute interval")
+```
+We can also calculate which 5 minute interval was a user most active on as follows:
+```{r, Most Active 5 minutes of a day,echo = TRUE}
+max_active_minute<- which.max(mean_steps_per_5_mins)
+mean_steps_per_5_mins[max_active_minute]
+```
+So the user is most active at 8:35 am taking approx. 206 steps, can relate to his office time where he is running a bit late and hence takes more steps per minute.
 
 
 
 ## Imputing missing values
+There are a lot of missing values(NA) present in out data
+```{r, Total Missing values, echo = TRUE}
+sum(is.na(activity$steps))
+```
+
+We need to devise a strategy to fill in the missing values, what we are gonna do is we will tae the mean of steps taken everyday for that 5 minute interval and repace the NAs with those values
+```{r, Caluclating mean and replacing the NAs, echo = TRUE}
+Inteval_average <- cbind(interval=activity$interval[1:length(mean_steps_per_5_mins)],mean_steps_per_5_mins)
+activity_complete <- activity
+activity_complete$steps[is.na(activity_complete$steps)] <- Inteval_average[as.character(activity$interval[is.na(activity$steps)]),2]
+```
+We can now compare the mean and median of the total steps taken per day by looking at the complete activity set and compare it with the results we obtained before
+```{r,Histogram of the New Data,echo=TRUE}
+complete_steps_in_a_day = aggregate(activity_complete$steps,list(activity_complete$date), sum,na.rm=TRUE)
+colnames(complete_steps_in_a_day) = c("date","Total_Steps")
+#Plotting the histogram
+hist(complete_steps_in_a_day$Total_Steps,xlab = "",col="red")
+```
+
+```{r,Mean and Median Computation of the New Data, echo=TRUE}
+# Mean
+mean(complete_steps_in_a_day$Total_Steps,na.rm=TRUE)
+# Median
+median(complete_steps_in_a_day$Total_Steps,na.rm =TRUE)
+```
+
 
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+To see the patterns of steps taken over weekdays and weekends, we will have to split the data into 2 subsets. 
+We will first change the date into a more standard format using the strptime function and then perfomr further computations
+We will then add a column to the complete data set.
+```{r, Converting date into a standart format,echo=TRUE}
+activity_complete$date = strptime(activity_complete$date, "%Y-%m-%d")
+#Create a new column marking a day as weekend if its saturday or sunday
+activity_complete$weekend <- (weekdays(activity_complete$date) == "Saturday" | weekdays(activity_complete$date) == "Sunday")
+
+#Creating the subset for weekdays and weekend based on the new column created
+weekdays <- subset(activity_complete, weekend == FALSE)
+weekends <- subset(activity_complete,weekend == TRUE)
+
+#Creating mean steps taken for each 5 minute interval throughout the period of 2 months on Weekdays
+mean_steps_per_5_mins_Weekdays <- tapply(weekdays$steps, weekdays$interval, mean, na.rm=TRUE)
+
+#Creating mean steps taken for each 5 minute interval throughout the period of 2 months on Weekdays
+mean_steps_per_5_mins_Weekends <- tapply(weekends$steps, weekends$interval, mean, na.rm=TRUE)
+```
+
+Now to compare the patterns of steps taken, we will create multiple plots on the same screen for comparison
+
+```{r, Plots creation, echo=TRUE}
+par(mfrow=c(2,1),mar=c(2.5,8,0.1,0.1))
+plot(mean_steps_per_5_mins_Weekends, type = "l", xlab = "",ylab= "Weekends")
+plot(mean_steps_per_5_mins_Weekdays, type = "l", xlab = "",ylab= "Weekdays")
+```
+
+```{r, Adding Free Space, echo=FALSE}
+
+```
+
+As can be seen, the patterns for weekends varies with the pattern for weekdays, Clearly the weekends dont have a specific spike for footsteps in the morning and is distributed as multiple spikes. Also, weekends have some late night steps as well, which can be because of late night dinners or parties that the person attends.
+
+
+
+
+
